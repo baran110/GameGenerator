@@ -4,70 +4,133 @@ import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.PopupMenu
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
-import com.baran.barangames.databinding.MainGameAdapterBinding
+import com.baran.barangames.databinding.GameListItemBinding
+import com.google.android.material.snackbar.Snackbar
 
-class GameGenerator(private val listener: Listener): RecyclerView.Adapter<GameGenerator.GameHolder>() {
-        private val gameList = ArrayList<GameList>()
+class GameListAdapter(private val listener: GameListListener) :
+    RecyclerView.Adapter<GameListAdapter.GameViewHolder>() {
 
-        class GameHolder(item: View): RecyclerView.ViewHolder(item) {
-            private val binding = MainGameAdapterBinding.bind(item)
-            fun bind(game: GameList, listener: Listener) = with(binding){
+    private var gameList = mutableListOf<GameList>()
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): GameViewHolder {
+        val binding = GameListItemBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        return GameViewHolder(binding)
+    }
+
+    override fun onBindViewHolder(holder: GameViewHolder, position: Int) {
+        holder.bind(gameList[position])
+    }
+
+    override fun getItemCount() = gameList.size
+
+    fun addGame(game: GameList) {
+        gameList.add(game)
+        notifyItemInserted(gameList.size - 1)
+    }
+
+    inner class GameViewHolder(private val binding: GameListItemBinding) :
+        RecyclerView.ViewHolder(binding.root) {
+
+        fun bind(game: GameList) {
+            with(binding) {
                 mainHolder.setOnClickListener {
                     listener.onClick(game)
                 }
-
-                when(game.title.length) {
-                    in 20..23 -> mainText.textSize = 13f
-                    in 24..26 -> mainText.textSize = 12f
-                    in 27..29 -> mainText.textSize = 11f
-                    in 30..100 -> mainText.textSize = 10f
-                    else -> mainText.textSize = 14f
+                mainHolder.setOnLongClickListener {
+                    showFilterOptions(binding.mainHolder)
                 }
-
-                when(game.category[0].length) {
-                   in 12..14 -> typeText.textSize = 7.5f
-                   in 15..17 -> typeText.textSize = 6.5f
-                   in 18..30 -> typeText.textSize = 5f
-                   else -> typeText.textSize = 9f
-                }
-
-                /* проверка на онлайн */
-                if(Constance.onlineTempText in game.isOnline && Constance.localTempText in game.isOnline) elementNumberCard.setCardBackgroundColor(Color.parseColor("#9C27B0"))
-                else if(Constance.onlineTempText in game.isOnline) elementNumberCard.setCardBackgroundColor(Color.parseColor("#03A9F4"))
-                else elementNumberCard.setCardBackgroundColor(Color.parseColor("#669800"))
-
-                val tempText = "${game.year.toString().replace("0..","")} ${Constance.yearTempText}"
-                yearText.text = tempText
-                typeText.text = game.category[0]
-                mainImage.setImageResource(game.imageId)
-                mainText.text = game.title
-                requirementsText.text = game.requirements
-                type2Text.text = game.is3d
-                val tempText2 = "${game.time.toString().replace("0..","")} ${Constance.timeTempText}"
-                timeText1.text = tempText2
-                mainNumber.text = game.elementNumber.toString()
+                itemView.setOnClickListener { listener.onClick(game) }
+                setMainTextSize(game.title.length)
+                setTypeTextSize(game.category[0].length)
+                setCardBackgroundColor(game.isOnline)
+                setYearText(game.year.toString())
+                setMainImage(game.imageId)
+                setMainText(game.title)
+                setRequirementsText(game.requirements)
+                setType2Text(game.is3d)
+                setTimeText1(game.time.toString())
+                setMainNumberText(game.elementNumber)
             }
         }
 
-
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): GameHolder {
-            val view = LayoutInflater.from(parent.context).inflate(R.layout.main_game_adapter, parent, false)
-            return GameHolder(view)
+        private fun setMainTextSize(titleLength: Int) {
+            binding.mainText.textSize = when (titleLength) {
+                in 20..23 -> 13f
+                in 24..26 -> 12f
+                in 27..29 -> 11f
+                in 30..100 -> 10f
+                else -> 14f
+            }
         }
 
-        override fun onBindViewHolder(holder: GameHolder, position: Int) {
-            holder.bind(gameList[position], listener)
+        private fun setTypeTextSize(categoryLength: Int) {
+            binding.typeText.textSize = when (categoryLength) {
+                in 12..14 -> 7.5f
+                in 15..17 -> 6.5f
+                in 18..30 -> 5f
+                else -> 9f
+            }
         }
 
-        override fun getItemCount(): Int = gameList.size
-
-        fun addPlant(game: GameList){
-            gameList.add(game)
-            notifyItemInserted(gameList.size - 1)
+        private fun setCardBackgroundColor(isOnline: Array<String>) {
+            binding.elementNumberCard.setCardBackgroundColor(
+                when {
+                    Constance.onlineTempText in isOnline && Constance.localTempText in isOnline -> Color.parseColor("#9C27B0")
+                    Constance.onlineTempText in isOnline -> Color.parseColor("#03A9F4")
+                    else -> Color.parseColor("#669800")
+                }
+            )
         }
 
-    interface Listener{
+        private fun setYearText(year: String) {
+            binding.yearText.text = "${year.replace("0..","")} ${Constance.yearTempText}"
+        }
+
+        private fun setMainImage(imageId: Int) {
+            binding.mainImage.setImageResource(imageId)
+        }
+
+        private fun setMainText(title: String) {
+            binding.mainText.text = title
+        }
+
+        private fun setRequirementsText(requirements: String) {
+            binding.requirementsText.text = requirements
+        }
+
+        private fun setType2Text(is3d: String) {
+            binding.type2Text.text = is3d
+        }
+
+        private fun setTimeText1(time: String) {
+            binding.timeText1.text = "${time.replace("0..","")} ${Constance.timeTempText}"
+        }
+
+        private fun setMainNumberText(elementNumber: Int) {
+            binding.mainNumber.text = elementNumber.toString()
+        }
+    }
+
+    private fun showFilterOptions(filterButton: View): Boolean {
+        val popupMenu = PopupMenu(filterButton.context, filterButton)
+        popupMenu.menuInflater.inflate(R.menu.filter_menu, popupMenu.menu)
+        popupMenu.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.add_to_marks -> {
+                    Snackbar.make(filterButton, "Добавлено в закладки!", Snackbar.LENGTH_SHORT).show()
+                    true
+                }
+                else -> false
+            }
+        }
+        popupMenu.show()
+        return true
+    }
+
+    interface GameListListener {
         fun onClick(game: GameList)
     }
 }
